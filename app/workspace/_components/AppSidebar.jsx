@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sidebar"
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Book, Compass, LayoutDashboard, PencilRulerIcon, UserCircle2Icon } from 'lucide-react'
+import { Book, ClipboardCheck, Compass, LayoutDashboard, PencilRulerIcon, UserCircle2Icon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import AddNewCourseDialog from './AddNewCourseDialog'
@@ -35,9 +35,9 @@ const SideBarOptions=[
     path:'/workspace/explore'
   },
   {
-    title:'AI Tools',
-    icon:PencilRulerIcon,
-    path:'/workspace/ai-tools'
+    title:'Task',
+    icon:ClipboardCheck,
+    path:'/workspace/task'
   },
   {
     title:'Profile',
