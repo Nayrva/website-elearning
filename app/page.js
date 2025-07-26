@@ -1,13 +1,12 @@
-import { Button } from "@/components/ui/button";
-import { UserButton } from "@clerk/nextjs";
-import Image from "next/image";
+'use client'
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function Home() {
-  return (
-   <div>
-    <h2>Hello World</h2>
-    <Button>CLICK ME</Button>
-    <UserButton />
-   </div>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/workspace');
+  }, [router]);
+
+  return null;
 }
