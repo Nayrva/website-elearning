@@ -1,11 +1,12 @@
 import { db } from '@/config/db';
-import { coursesTable } from '@/config/schema';
+import { coursesTable, usersTable } from '@/config/schema';
 import { currentUser } from '@clerk/nextjs/server';
 import {
   GoogleGenAI,
 } from '@google/genai';
 import axios from 'axios';
 import { NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
 
 const PROMPT=`Genrate Learning Course depends on following details. In which Make sure to add Course Name, Description, Chapter Name, Image Prompt (Create a modern, flat-style 2D digital illustration representing user Topic. Include UI/UX elements such as mockup screens, text blocks, icons, buttons, and creative workspace tools. Add symbolic elements related to user Course, like sticky notes, design components, and visual aids. Use a vibrant color palette (blues, purples, oranges) with a clean, professional look. The illustration should feel creative, tech-savvy, and educational, ideal for visualizing concepts in user Course) for Course Banner in 3d format, Topic under each chapters, Duration for each chapters etc, in JSON format only
 
@@ -40,9 +41,21 @@ Schema:
  export const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
   });
+
 export async function POST(req){
     const {courseId,...formData}=await req.json();
     const user=await currentUser();
+
+     if (!user) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const userEmail = user.primaryEmailAddress?.emailAddress;
+    const dbUser = await db.select().from(usersTable).where(eq(usersTable.email, userEmail));
+    
+    if (!dbUser || dbUser[0]?.role !== 'guru') {
+        return new NextResponse("Forbidden: Hanya guru yang dapat membuat kursus", { status: 403 });
+    }
 
   const config = {
     thinkingConfig: {

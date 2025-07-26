@@ -14,11 +14,12 @@ export async function POST(req){
     if(users?.length==0){
         const result=await db.insert(usersTable).values({
             name:name,
-            email:email
-        }).returning(usersTable);
+            email:email,
+            role:'siswa' //default role is siswa
+        }).returning();
         
         console.log(result);
-        return NextResponse.json(result)
+        return NextResponse.json(result[0])
     }
 
     return NextResponse.json(users[0])
