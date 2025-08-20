@@ -1,5 +1,6 @@
 import { boolean, integer, json, pgTable, timestamp, varchar, text } from "drizzle-orm/pg-core";
 
+// Tabel Pengguna (Tetap sama)
 export const usersTable = pgTable("users", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   name: varchar({ length: 255 }).notNull(),
@@ -7,44 +8,67 @@ export const usersTable = pgTable("users", {
   role: varchar({ length: 50 }).default('siswa').notNull(), // Pilihan: 'admin', 'guru', 'siswa'
 });
 
-
-export const coursesTable=pgTable("courses",{
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  cid:varchar().notNull().unique(),
-  name:varchar(),
-  description:varchar(),
-  noOfChapters:integer().notNull(),
-  includeVideo:boolean().default(false),
-  level:varchar().notNull(),
-  category:varchar(),
-  courseJson:json(),
-  bannerImageUrl:varchar().default(''),
-  courseContent:json().default({}),
-  userEmail:varchar('userEmail').references(()=>usersTable.email).notNull()
+// Tabel Kelas Baru
+export const kelasTable = pgTable("kelas", {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    cid: varchar().notNull().unique(), // Class ID unik
+    name: varchar({ length: 255 }).notNull(),
+    description: text(),
+    teacherEmail: varchar('teacherEmail').references(() => usersTable.email).notNull(),
 });
 
-export const enrollCourseTable=pgTable('enrollCourse',{
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  cid:varchar('cid').references(()=>coursesTable.cid),
-  userEmail:varchar('userEmail').references(()=>usersTable.email).notNull(),
-  completedChapters:json()
+// Tabel untuk menghubungkan siswa ke kelas
+export const enrollmentsTable = pgTable("enrollments", {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    kelasCid: varchar('kelasCid').references(() => kelasTable.cid).notNull(),
+    studentEmail: varchar('studentEmail').references(() => usersTable.email).notNull(),
 });
 
-export const tasksTable=pgTable("tasks",{
+// Tabel Materi Baru
+export const materiTable = pgTable("materi", {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    title: varchar({ length: 255 }).notNull(),
+    description: text(),
+    fileUrl: varchar(),
+    kelasCid: varchar('kelasCid').references(() => kelasTable.cid).notNull(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+});
+
+// Tabel Tugas (Diperbarui untuk terhubung ke kelas)
+export const tasksTable = pgTable("tasks", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  courseId:varchar('courseId').references(()=>coursesTable.cid).notNull(),
-  title:varchar({ length: 255 }).notNull(),
+  kelasCid: varchar('kelasCid').references(() => kelasTable.cid).notNull(),
+  title: varchar({ length: 255 }).notNull(),
   description: text(),
   fileUrl: varchar(),
-  createdAt:timestamp('createdAt').defaultNow().notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
   dueDate: timestamp('dueDate')
 });
 
-export const submissionsTable=pgTable("submissions", {
+// Tabel Jawaban Tugas (Tetap sama)
+export const submissionsTable = pgTable("submissions", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   taskId: integer('taskId').references(()=>tasksTable.id).notNull(),
   studentEmail: varchar('studentEmail').references(()=>usersTable.email).notNull(),
   fileUrl: varchar().notNull(),
   submittedAt: timestamp('submittedAt').defaultNow().notNull(),
   grade:integer()
+});
+
+// Tabel Kuis (Diperbarui untuk terhubung ke kelas)
+export const quizzesTable = pgTable("quizzes", {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    kelasCid: varchar('kelasCid').references(() => kelasTable.cid).notNull(),
+    title: varchar({ length: 255 }).notNull(),
+    quizJson: json(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+});
+
+// Tabel Jawaban Kuis (Tetap sama)
+export const quizSubmissionsTable = pgTable("quizSubmissions", {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    quizId: integer('quizId').references(() => quizzesTable.id).notNull(),
+    studentEmail: varchar('studentEmail').references(() => usersTable.email).notNull(),
+    score: integer().notNull(),
+    submittedAt: timestamp('submittedAt').defaultNow().notNull(),
 });

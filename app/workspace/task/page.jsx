@@ -8,110 +8,124 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Upload, FileText, CheckCircle, Loader2Icon, Download } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Upload, FileText, CheckCircle, Loader2Icon, Download, Sparkle, PlusCircle, ClipboardCheck, Edit } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
 
-// Komponen Utama Halaman Task
-function TaskPage() {
-  const { userDetail } = useContext(UserDetailContext);
-  const userRole = userDetail?.role;
-
-  if (!userRole) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-3xl font-bold mb-6"><Skeleton className="h-10 w-1/3" /></h1>
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Tugas</h1>
-      
-      {userRole === 'siswa' && <StudentView />}
-      {(userRole === 'guru' || userRole === 'admin') && <TeacherView />}
-    </div>
-  );
-}
-
 // =====================================================================
-// Tampilan untuk Guru dan Admin
+// Komponen Dialog untuk Generate Kuis AI
 // =====================================================================
-const TeacherView = () => {
-    const [courses, setCourses] = useState([]);
-    const [tasks, setTasks] = useState([]);
-    const [submissions, setSubmissions] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('submissions');
+function AddNewQuizDialog({ children, kelasList, refreshData }) {
+    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        topic: '',
+        numQuestions: 5,
+        difficulty: 'Moderate',
+        kelasCid: ''
+    });
+    const [isOpen, setIsOpen] = useState(false);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    const handleInputChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
 
-    const fetchData = async () => {
+    const onGenerate = async () => {
+        if (!formData.topic || !formData.kelasCid) {
+            toast.error("Topik kuis dan kelas harus dipilih.");
+            return;
+        }
         setLoading(true);
         try {
-            const [coursesRes, tasksRes, submissionsRes] = await Promise.all([
-                axios.get('/api/courses'), // Mengambil kursus yang dibuat oleh guru
-                axios.get('/api/tasks'),
-                axios.get('/api/submissions')
-            ]);
-            setCourses(coursesRes.data);
-            setTasks(tasksRes.data);
-            setSubmissions(submissionsRes.data);
-        } catch (error) {
-            toast.error('Gagal memuat data.');
-            console.error(error);
+            await axios.post('/api/generate-quiz', formData);
+            toast.success('Kuis berhasil dibuat!');
+            refreshData();
+            setIsOpen(false); // Tutup dialog setelah berhasil
+        } catch (e) {
+            toast.error("Gagal membuat kuis. Coba lagi.");
+            console.error(e);
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading) {
-        return <Skeleton className="h-64 w-full" />;
-    }
-
     return (
-        <div className="space-y-8">
-            <div className="flex border-b">
-                <button onClick={() => setActiveTab('submissions')} className={`py-2 px-4 ${activeTab === 'submissions' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}>Lihat Jawaban</button>
-                <button onClick={() => setActiveTab('create')} className={`py-2 px-4 ${activeTab === 'create' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}>Buat Tugas Baru</button>
-            </div>
-
-            {activeTab === 'create' ? <CreateTaskForm courses={courses} refreshData={fetchData} /> : <SubmissionsList tasks={tasks} submissions={submissions} refreshData={fetchData} />}
-        </div>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>{children}</DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Buat Kuis Baru dengan AI</DialogTitle>
+                    <DialogDescription>
+                        Isi detail di bawah ini untuk membuat kuis secara otomatis.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className='flex flex-col gap-4 mt-3'>
+                    <div>
+                        <label>Pilih Kelas</label>
+                        <Select onValueChange={(value) => handleInputChange('kelasCid', value)}>
+                            <SelectTrigger><SelectValue placeholder="Pilih kelas untuk kuis ini" /></SelectTrigger>
+                            <SelectContent>
+                                {kelasList.map(kelas => <SelectItem key={kelas.cid} value={kelas.cid}>{kelas.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label>Topik Kuis</label>
+                        <Input placeholder="Contoh: Sejarah Kemerdekaan Indonesia"
+                            onChange={(e) => handleInputChange('topic', e.target.value)} />
+                    </div>
+                    <div>
+                        <label>Jumlah Pertanyaan</label>
+                        <Input type="number" defaultValue={5}
+                            onChange={(e) => handleInputChange('numQuestions', parseInt(e.target.value))} />
+                    </div>
+                    <div>
+                        <label>Tingkat Kesulitan</label>
+                        <Select onValueChange={(value) => handleInputChange('difficulty', value)} defaultValue="Moderate">
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Beginner">Beginner</SelectItem>
+                                <SelectItem value="Moderate">Moderate</SelectItem>
+                                <SelectItem value="Advanced">Advanced</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className='mt-5'>
+                        <Button className={'w-full'} onClick={onGenerate} disabled={loading}>
+                            {loading ? <Loader2Icon className='animate-spin' /> : <Sparkle />} Generate Kuis
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
-};
+}
 
-// Form untuk Membuat Tugas Baru
-const CreateTaskForm = ({ courses, refreshData }) => {
+// =====================================================================
+// Komponen Form untuk Membuat Tugas Manual
+// =====================================================================
+const CreateTaskForm = ({ kelasList, refreshData, setActiveTab }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [courseId, setCourseId] = useState('');
+    const [kelasCid, setKelasCid] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [file, setFile] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!title || !courseId) {
-            toast.error('Judul dan Mata Pelajaran harus diisi.');
+        if (!title || !kelasCid) {
+            toast.error('Judul dan Kelas harus diisi.');
             return;
         }
         setIsSubmitting(true);
         try {
-            // TODO: Implementasikan logika upload file ke cloud storage
             const fileUrl = file ? `/uploads/tasks/${file.name}` : null;
 
-            await axios.post('/api/tasks', { title, description, courseId, dueDate, fileUrl });
+            await axios.post('/api/tasks', { title, description, kelasCid, dueDate, fileUrl });
             toast.success('Tugas berhasil dibuat!');
-            // Reset form
-            setTitle(''); setDescription(''); setCourseId(''); setDueDate(''); setFile(null);
             refreshData();
+            setActiveTab('list');
         } catch (error) {
             toast.error(error.response?.data || 'Gagal membuat tugas.');
         } finally {
@@ -121,19 +135,19 @@ const CreateTaskForm = ({ courses, refreshData }) => {
 
     return (
         <form onSubmit={handleSubmit} className="p-6 border rounded-lg bg-secondary space-y-4 max-w-2xl animate-in fade-in-50">
-            <h2 className="text-2xl font-semibold">Detail Tugas</h2>
+            <h2 className="text-2xl font-semibold">Detail Tugas Manual</h2>
             <div>
-                <label className="block text-sm font-medium mb-1">Untuk Mata Pelajaran</label>
-                <Select onValueChange={setCourseId} value={courseId}>
-                    <SelectTrigger><SelectValue placeholder="Pilih mata pelajaran" /></SelectTrigger>
+                <label className="block text-sm font-medium mb-1">Untuk Kelas</label>
+                <Select onValueChange={setKelasCid} value={kelasCid}>
+                    <SelectTrigger><SelectValue placeholder="Pilih kelas" /></SelectTrigger>
                     <SelectContent>
-                        {courses.map(course => <SelectItem key={course.cid} value={course.cid}>{course.name}</SelectItem>)}
+                        {kelasList.map(kelas => <SelectItem key={kelas.cid} value={kelas.cid}>{kelas.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
             </div>
             <div>
-                <label className="block text-sm font-medium mb-1">Judul</label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Contoh: Tugas 1" />
+                <label className="block text-sm font-medium mb-1">Judul Tugas</label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Contoh: Laporan Praktikum Bab 1" />
             </div>
             <div>
                 <label className="block text-sm font-medium mb-1">Deskripsi / Instruksi</label>
@@ -147,190 +161,161 @@ const CreateTaskForm = ({ courses, refreshData }) => {
                 <label className="block text-sm font-medium mb-1">Unggah File Soal (Opsional)</label>
                 <Input type="file" onChange={(e) => setFile(e.target.files[0])} />
             </div>
-            <Button type="submit" disabled={isSubmitting} className="flex items-center gap-2">
-                {isSubmitting ? <Loader2Icon className="animate-spin" /> : <Upload size={18} />}
-                Buat Tugas
-            </Button>
+            <div className="flex gap-4">
+                <Button type="submit" disabled={isSubmitting} className="flex items-center gap-2">
+                    {isSubmitting ? <Loader2Icon className="animate-spin" /> : <Upload size={18} />}
+                    Buat Tugas
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setActiveTab('list')}>Batal</Button>
+            </div>
         </form>
     );
 };
 
-// Daftar Jawaban yang Masuk
-const SubmissionsList = ({ tasks, submissions, refreshData }) => {
-    const [grade, setGrade] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
+// =====================================================================
+// Komponen Card untuk menampilkan Tugas atau Kuis
+// =====================================================================
+const AssignmentCard = ({ item,userRole }) => {
+    const router = useRouter();
+    const isQuiz = item.type === 'quiz';
+    const icon = isQuiz ? <FileText className="h-5 w-5 text-purple-500" /> : <ClipboardCheck className="h-5 w-5 text-blue-500" />;
+    const badgeText = isQuiz ? 'Kuis' : 'Tugas';
+    const badgeClass = isQuiz ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
 
-    const handleSaveGrade = async (submissionId) => {
-        if (!grade || grade < 0 || grade > 100) {
-            toast.error('Nilai harus antara 0 dan 100.');
-            return;
-        }
-        setIsSaving(true);
-        try {
-            await axios.put('/api/submissions', { submissionId, grade: parseInt(grade) });
-            toast.success('Nilai berhasil disimpan!');
-            setGrade('');
-            refreshData();
-        } catch (error) {
-            toast.error(error.response?.data || 'Gagal menyimpan nilai.');
-        } finally {
-            setIsSaving(false);
+    const handleAction = () => {
+        if (isQuiz) {
+            router.push(`/workspace/quiz/${item.id}`);
+        } else {
+            // Logika untuk tugas manual (misal: buka halaman detail tugas)
+            toast.info("Halaman detail tugas belum diimplementasikan.");
         }
     };
-    
+
+     // Teks tombol dinamis berdasarkan peran pengguna
+    const buttonText = userRole === 'siswa' ? (isQuiz ? 'Kerjakan Kuis' : 'Lihat Tugas') : 'Lihat Jawaban';
+
     return (
-        <div className="space-y-4 animate-in fade-in-50">
-            {tasks.length === 0 && <p>Anda belum membuat tugas apapun.</p>}
-            {tasks.map(task => (
-                <div key={task.id} className="p-4 border rounded-lg">
-                    <h3 className="font-bold text-lg">{task.title}</h3>
-                    <div className="mt-2 space-y-2">
-                        {submissions.filter(s => s.taskId === task.id).length === 0 && <p className="text-sm text-gray-500">Belum ada jawaban yang masuk.</p>}
-                        {submissions.filter(s => s.taskId === task.id).map(sub => (
-                             <div key={sub.id} className="p-3 bg-secondary rounded-md flex flex-wrap justify-between items-center gap-2">
-                                <div>
-                                    <p className="font-semibold">{sub.studentEmail}</p>
-                                    <a href={sub.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1"><Download size={14} /> Lihat Jawaban</a>
-                                </div>
-                                {sub.grade !== null ? (
-                                    <p className="font-bold text-lg">Nilai: {sub.grade}</p>
-                                ) : (
-                                   <Dialog>
-                                       <DialogTrigger asChild><Button variant="outline">Beri Nilai</Button></DialogTrigger>
-                                       <DialogContent>
-                                           <DialogHeader><DialogTitle>Beri Nilai untuk {sub.studentEmail}</DialogTitle></DialogHeader>
-                                           <div className="space-y-4 py-4">
-                                                <p>Tugas: <span className="font-semibold">{task.title}</span></p>
-                                                <Input type="number" placeholder="Masukkan nilai (0-100)" onChange={(e) => setGrade(e.target.value)} />
-                                                <Button onClick={() => handleSaveGrade(sub.id)} disabled={isSaving} className="w-full">
-                                                    {isSaving ? <Loader2Icon className="animate-spin" /> : 'Simpan Nilai'}
-                                                </Button>
-                                           </div>
-                                       </DialogContent>
-                                   </Dialog>
-                                )}
-                            </div>
-                        ))}
+        <div className="border rounded-lg p-4 flex flex-col justify-between hover:shadow-md transition-shadow">
+            <div>
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                        {icon}
+                        <h3 className="text-lg font-bold">{item.title}</h3>
                     </div>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${badgeClass}`}>{badgeText}</span>
                 </div>
-            ))}
+                <p className="text-sm text-gray-500 mt-2">Kelas: {item.kelasName || 'N/A'}</p>
+                <p className="text-sm text-gray-500">Dibuat pada: {new Date(item.createdAt).toLocaleDateString('id-ID')}</p>
+                {item.dueDate && <p className="text-sm text-red-500 mt-1">Batas Waktu: {new Date(item.dueDate).toLocaleDateString('id-ID')}</p>}
+            </div>
+            <div className="mt-4 flex gap-2">
+                <Button 
+                    variant={isQuiz && userRole === 'siswa' ? 'default' : 'outline'} 
+                    size="sm" 
+                    className="w-full" 
+                    onClick={handleAction}
+                >
+                    {isQuiz && userRole === 'siswa' && <Edit className="mr-2 h-4 w-4" />}
+                    {buttonText}
+                </Button>
+            </div>
         </div>
     );
 };
 
-
 // =====================================================================
-// Tampilan untuk Siswa
+// Komponen Utama Halaman
 // =====================================================================
-const StudentView = () => {
+function TaskPage() {
+    const { userDetail } = useContext(UserDetailContext);
+    const [activeTab, setActiveTab] = useState('list');
+    const [kelasList, setKelasList] = useState([]);
     const [tasks, setTasks] = useState([]);
-    const [mySubmissions, setMySubmissions] = useState({});
+    const [quizzes, setQuizzes] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            const [tasksRes, submissionsRes] = await Promise.all([
-                axios.get('/api/tasks'),
-                axios.get('/api/submissions?student=me')
-            ]);
-            setTasks(tasksRes.data);
-            const submissionsMap = submissionsRes.data.reduce((acc, sub) => {
-                acc[sub.taskId] = sub;
-                return acc;
-            }, {});
-            setMySubmissions(submissionsMap);
-        } catch (error) {
-            toast.error('Gagal memuat daftar tugas.');
-            console.error(error);
-        } finally {
-            setLoading(false);
+        // Hanya jalankan fetchData jika userDetail sudah terisi
+        if (userDetail) {
+            const fetchData = async () => {
+                setLoading(true);
+                try {
+                    const [kelasRes, tasksRes, quizzesRes] = await Promise.all([
+                        axios.get('/api/kelas'),
+                        axios.get('/api/tasks'),
+                        axios.get('/api/quizzes')
+                    ]);
+                    setKelasList(kelasRes.data);
+                    setTasks(tasksRes.data);
+                    setQuizzes(quizzesRes.data);
+                } catch (error) {
+                    toast.error("Gagal memuat data.");
+                    console.error(error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchData();
         }
-    };
+    }, [userDetail]);
 
-    if (loading) {
-        return [1,2,3].map(i => <Skeleton key={i} className="h-32 w-full mb-4" />)
+    // Perbaikan: Tampilkan loading state sampai userDetail (termasuk role) benar-benar ada.
+    if (!userDetail) {
+        return (
+            <div>
+                <h1 className="text-3xl font-bold mb-6">Tugas & Kuis</h1>
+                <Skeleton className="h-12 w-1/3 mb-6" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        );
     }
 
-    return (
-        <div className="space-y-6">
-            {tasks.length === 0 && <p>Belum ada tugas yang tersedia.</p>}
-            {tasks.map(task => (
-                <TaskCard key={task.id} task={task} submission={mySubmissions[task.id]} refreshData={fetchData} />
-            ))}
-        </div>
-    );
-};
-
-// Kartu Tugas untuk Siswa
-const TaskCard = ({ task, submission, refreshData }) => {
-    const [file, setFile] = useState(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleSubmit = async () => {
-        if (!file) {
-            toast.error('Silakan pilih file jawaban terlebih dahulu.');
-            return;
-        }
-        setIsSubmitting(true);
-        try {
-            // TODO: Implementasikan logika upload file dan kirim ke API
-            const fileUrl = `/uploads/submissions/${file.name}`;
-            await axios.post('/api/submissions', { taskId: task.id, fileUrl });
-            toast.success('Jawaban berhasil diunggah!');
-            refreshData();
-        } catch (error) {
-            toast.error(error.response?.data || 'Gagal mengunggah jawaban.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const isSubmitted = !!submission;
-    const isGraded = isSubmitted && submission.grade !== null;
+    const isTeacherOrAdmin = userDetail.role === 'guru' || userDetail.role === 'admin';
+    const combinedList = [...tasks.map(t => ({ ...t, type: 'task' })), ...quizzes.map(q => ({ ...q, type: 'quiz' }))]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     return (
-        <div className="p-6 border rounded-lg transition-all hover:shadow-md">
-            <div className="flex flex-wrap justify-between items-start gap-4">
-                <div>
-                    <h3 className="text-xl font-bold">{task.title}</h3>
-                    <p className="text-sm text-gray-500 mb-2">{task.courseId}</p> {/* Ganti dengan nama kursus jika perlu join tabel */}
-                    <p className="mb-4">{task.description}</p>
-                    {task.fileUrl && <a href={task.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1 mb-4"><Download size={16} /> Unduh Soal</a>}
+        <div>
+            <h1 className="text-3xl font-bold mb-6">Tugas & Kuis</h1>
+            
+            {isTeacherOrAdmin && (
+                <div className="mb-6 flex flex-wrap gap-4 border-b pb-4">
+                    <Button variant={activeTab === 'list' ? 'default' : 'outline'} onClick={() => setActiveTab('list')}>Daftar Tugas & Kuis</Button>
+                    <Button variant={activeTab === 'createTask' ? 'default' : 'outline'} onClick={() => setActiveTab('createTask')}>Buat Tugas Manual</Button>
+                    <AddNewQuizDialog kelasList={kelasList} refreshData={() => { if (userDetail) fetchData(); }}>
+                        <Button variant="outline"><Sparkle className="mr-2 h-4 w-4" /> Buat Kuis dengan AI</Button>
+                    </AddNewQuizDialog>
                 </div>
-                <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-medium">Batas Waktu</p>
-                    <p className="text-sm text-gray-600">{task.dueDate ? new Date(task.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</p>
-                </div>
-            </div>
+            )}
 
-            <div className="mt-4 pt-4 border-t">
-                {isGraded ? (
-                    <div className="text-center">
-                        <p className="text-lg">Nilai Anda:</p>
-                        <p className="text-4xl font-bold text-primary">{submission.grade}</p>
+            <div>
+                {activeTab === 'list' && (
+                    <div>
+                        <h2 className="text-2xl font-semibold mb-4">Daftar Semua Tugas dan Kuis</h2>
+                        {loading ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {[1, 2, 3].map(i => <Skeleton key={i} className="h-40 w-full" />)}
+                            </div>
+                        ) : combinedList.length === 0 ? (
+                            <div className="text-center py-10 border-2 border-dashed rounded-lg">
+                                <p className="text-gray-500">Belum ada tugas atau kuis yang dibuat.</p>
+                                {isTeacherOrAdmin && <p className="text-sm text-gray-400 mt-2">Gunakan tombol di atas untuk memulai.</p>}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {combinedList.map(item => (
+                                    <AssignmentCard key={`${item.type}-${item.id}`} item={item} userRole={userDetail.role} />
+                                ))}
+                            </div>
+                        )}
                     </div>
-                ) : isSubmitted ? (
-                    <div className="flex items-center gap-2 text-green-600">
-                        <CheckCircle size={20} />
-                        <p className="font-semibold">Jawaban sudah diunggah. Menunggu dinilai.</p>
-                    </div>
-                ) : (
-                    <div className="flex flex-wrap items-center gap-4">
-                        <Input type="file" onChange={(e) => setFile(e.target.files[0])} className="flex-grow" />
-                        <Button onClick={handleSubmit} disabled={isSubmitting} className="flex items-center gap-2">
-                           {isSubmitting ? <Loader2Icon className="animate-spin" /> : <Upload size={18} />}
-                            Unggah Jawaban
-                        </Button>
-                    </div>
+                )}
+                {activeTab === 'createTask' && isTeacherOrAdmin && (
+                    <CreateTaskForm kelasList={kelasList} refreshData={() => { if (userDetail) fetchData(); }} setActiveTab={setActiveTab} />
                 )}
             </div>
         </div>
     );
-};
+}
 
 export default TaskPage;

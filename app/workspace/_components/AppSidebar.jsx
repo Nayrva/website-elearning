@@ -9,34 +9,33 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import Image from 'next/image'
-import { Button } from '@/components/ui/button'
-import { Book, Compass, LayoutDashboard, UserCircle2Icon, ClipboardCheck, Shield } from 'lucide-react'
+import { LayoutDashboard, Users, BookOpen, ClipboardCheck, UserCircle2Icon, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import AddNewCourseDialog from './AddNewCourseDialog'
 import { UserDetailContext } from '@/context/UserDetailContext'
 
-// Definisikan menu untuk setiap peran
+// Definisikan menu baru untuk setiap peran
 const menuConfig = {
   admin: [
     { title: 'Admin Panel', icon: Shield, path: '/workspace/admin' },
     { title: 'Dashboard', icon: LayoutDashboard, path: '/workspace' },
-    { title: 'Explore Courses', icon: Compass, path: '/workspace/explore' },
-    { title: 'Task', icon: ClipboardCheck, path: '/workspace/task' },
+    { title: 'Kelas', icon: Users, path: '/workspace/kelas' },
+    { title: 'Materi', icon: BookOpen, path: '/workspace/materi' },
+    { title: 'Tugas/Kuis', icon: ClipboardCheck, path: '/workspace/task' },
     { title: 'Profile', icon: UserCircle2Icon, path: '/workspace/profile' }
   ],
   guru: [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/workspace' },
-    { title: 'My Learning', icon: Book, path: '/workspace/my-learning' },
-    { title: 'Explore Courses', icon: Compass, path: '/workspace/explore' },
-    { title: 'Task', icon: ClipboardCheck, path: '/workspace/task' },
+    { title: 'Kelas', icon: Users, path: '/workspace/kelas' },
+    { title: 'Materi', icon: BookOpen, path: '/workspace/materi' },
+    { title: 'Tugas/Kuis', icon: ClipboardCheck, path: '/workspace/task' },
     { title: 'Profile', icon: UserCircle2Icon, path: '/workspace/profile' }
   ],
   siswa: [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/workspace' },
-    { title: 'My Learning', icon: Book, path: '/workspace/my-learning' },
-    { title: 'Explore Courses', icon: Compass, path: '/workspace/explore' },
-    { title: 'Task', icon: ClipboardCheck, path: '/workspace/task' },
+    { title: 'Kelas', icon: Users, path: '/workspace/kelas' },
+    { title: 'Materi', icon: BookOpen, path: '/workspace/materi' },
+    { title: 'Tugas/Kuis', icon: ClipboardCheck, path: '/workspace/task' },
     { title: 'Profile', icon: UserCircle2Icon, path: '/workspace/profile' }
   ]
 };
@@ -53,19 +52,9 @@ function AppSidebar() {
         <Image src={'/logosma2.png'} alt='logo' width={300} height={200} />
       </SidebarHeader>
       <SidebarContent>
-        {userRole === 'guru' && (
-          <div className="p-2">
-            <AddNewCourseDialog>
-              <Button className="w-full">Create New Course</Button>
-            </AddNewCourseDialog>
-          </div>
-        )}
-        
         <SidebarMenu className="p-2">
           {sideBarOptions.map((item, index) => {
-            const isActive = (item.path === '/workspace')
-            ?path === item.path
-            : path.startsWith(item.path);
+            const isActive = path.startsWith(item.path) && (item.path !== '/workspace' || path === '/workspace');
 
             return (
             <SidebarMenuItem key={index}>
