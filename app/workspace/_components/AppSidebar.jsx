@@ -17,7 +17,7 @@ import { UserDetailContext } from '@/context/UserDetailContext'
 // Definisikan menu baru untuk setiap peran
 const menuConfig = {
   admin: [
-    { title: 'Admin Panel', icon: Shield, path: '/workspace/admin' },
+    { title: 'Users', icon: Shield, path: '/workspace/admin' },
     { title: 'Dashboard', icon: LayoutDashboard, path: '/workspace' },
     { title: 'Kelas', icon: Users, path: '/workspace/kelas' },
     { title: 'Materi', icon: BookOpen, path: '/workspace/materi' },
