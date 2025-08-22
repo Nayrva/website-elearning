@@ -16,20 +16,57 @@ export async function GET(req) {
     if (!user) return new NextResponse("Unauthorized", { status: 401 });
 
     const userEmail = user.primaryEmailAddress.emailAddress;
-    
+    const role = await getUserRole(userEmail);
+
     try {
-        // Mengambil semua tugas dan menggabungkannya dengan tabel kelas
-        const tasksWithClassName = await db.select({
-            id: tasksTable.id,
-            title: tasksTable.title,
-            description: tasksTable.description,
-            dueDate: tasksTable.dueDate,
-            createdAt: tasksTable.createdAt,
-            kelasName: kelasTable.name
-        })
-        .from(tasksTable)
-        .leftJoin(kelasTable, eq(tasksTable.kelasCid, kelasTable.cid))
-        .orderBy(desc(tasksTable.id));
+        let tasksWithClassName;
+
+        if (role === 'guru') {
+            const teacherKelas = await db.select({ cid: kelasTable.cid }).from(kelasTable).where(eq(kelasTable.teacherEmail, userEmail));
+            const kelasCids = teacherKelas.map(k => k.cid);
+            if (kelasCids.length === 0) return NextResponse.json([]);
+            tasksWithClassName = await db.select({
+                id: tasksTable.id,
+                title: tasksTable.title,
+                description: tasksTable.description,
+                dueDate: tasksTable.dueDate,
+                createdAt: tasksTable.createdAt,
+                kelasName: kelasTable.name
+            })
+            .from(tasksTable)
+            .leftJoin(kelasTable, eq(tasksTable.kelasCid, kelasTable.cid))
+            .where(inArray(tasksTable.kelasCid, kelasCids))
+            .orderBy(desc(tasksTable.id));
+
+        } else if (role === 'siswa') {
+            const studentEnrollments = await db.select({ kelasCid: enrollmentsTable.kelasCid }).from(enrollmentsTable).where(eq(enrollmentsTable.studentEmail, userEmail));
+            const kelasCids = studentEnrollments.map(e => e.kelasCid);
+            if (kelasCids.length === 0) return NextResponse.json([]);
+            tasksWithClassName = await db.select({
+                id: tasksTable.id,
+                title: tasksTable.title,
+                description: tasksTable.description,
+                dueDate: tasksTable.dueDate,
+                createdAt: tasksTable.createdAt,
+                kelasName: kelasTable.name
+            })
+            .from(tasksTable)
+            .leftJoin(kelasTable, eq(tasksTable.kelasCid, kelasTable.cid))
+            .where(inArray(tasksTable.kelasCid, kelasCids))
+            .orderBy(desc(tasksTable.id));
+        } else { // admin
+            tasksWithClassName = await db.select({
+                id: tasksTable.id,
+                title: tasksTable.title,
+                description: tasksTable.description,
+                dueDate: tasksTable.dueDate,
+                createdAt: tasksTable.createdAt,
+                kelasName: kelasTable.name
+            })
+            .from(tasksTable)
+            .leftJoin(kelasTable, eq(tasksTable.kelasCid, kelasTable.cid))
+            .orderBy(desc(tasksTable.id));
+        }
 
         return NextResponse.json(tasksWithClassName);
 
